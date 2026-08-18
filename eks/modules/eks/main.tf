@@ -58,6 +58,30 @@ resource "aws_iam_role_policy_attachment" "node_policy" {
   role       = aws_iam_role.node.name
 }
 
+# EKS-managed node groups use an AWS-managed default launch template unless
+# given a custom one - that default sets the IMDS hop limit to 1, which
+# blocks pods (one network hop further than the host) from reaching instance
+# metadata. The AWS Load Balancer Controller needs IMDS to auto-discover the
+# VPC ID, so it crash-loops on any node using the default template. This
+# custom template only overrides metadata_options, leaving instance type/AMI
+# selection to the node group's own instance_types below.
+resource "aws_launch_template" "node" {
+  name_prefix = "${var.cluster_name}-node-"
+
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_put_response_hop_limit = 2
+    http_tokens                 = "required"
+  }
+
+  tag_specifications {
+    resource_type = "instance"
+    tags = {
+      Name = "${var.cluster_name}-node"
+    }
+  }
+}
+
 resource "aws_eks_node_group" "main" {
   for_each = var.node_groups
 
@@ -68,6 +92,11 @@ resource "aws_eks_node_group" "main" {
 
   instance_types = each.value.instance_types
   capacity_type  = each.value.capacity_type
+
+  launch_template {
+    id      = aws_launch_template.node.id
+    version = aws_launch_template.node.latest_version
+  }
 
   scaling_config {
     desired_size = each.value.scaling_config.desired_size

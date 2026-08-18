@@ -44,6 +44,18 @@ terraform apply
 aws eks update-kubeconfig --name <cluster_name> --region us-east-1
 ```
 
+## Bootstrapping ArgoCD onto a fresh cluster
+
+`scripts/bootstrap-eks.sh` picks up where `terraform apply` leaves off: installs ArgoCD, the AWS Load Balancer Controller (with its IAM/IRSA role), the GHCR pull secret, and the app's ArgoCD `Application` - the whole post-infra setup in one command instead of a dozen manual `eksctl`/`helm`/`kubectl` steps. It's idempotent, so re-running it after a partial failure (or just to double-check nothing drifted) is always safe.
+
+```bash
+echo -n "<your GHCR PAT>" > ~/.ghcr-pat   # once - never committed, never logged
+cd scripts
+./bootstrap-eks.sh
+```
+
+This is deliberately separate from `terraform apply`/`terraform destroy`: infra provisioning takes several minutes and is its own lifecycle, while this script is the fast, repeatable "make the app come alive" step you'd run right before a demo.
+
 ## Where this fits in the bigger picture
 
 Once the cluster exists, [ArgoCD](https://github.com/AmirWeiser/opentelemetry-demo-gitops) is installed on it and points at the `opentelemetry-demo-gitops` repo's Helm chart. From there, deployments are entirely GitOps-driven — nothing gets `kubectl apply`'d by hand. This repo's only job is making sure the cluster itself exists and is sized sensibly; it has no opinion on what runs inside it.
