@@ -40,6 +40,24 @@ variable "cluster_version" {
   default     = "1.35"
 }
 
+variable "ghcr_username" {
+  description = "GHCR username used for the image pull secret"
+  type        = string
+  default     = "amirweiser"
+}
+
+variable "ghcr_pat" {
+  description = "GHCR personal access token (read:packages). Supply via TF_VAR_ghcr_pat - never committed, no default so apply fails loudly if it's missing."
+  type        = string
+  sensitive   = true
+}
+
+variable "gitops_repo_url" {
+  description = "URL of the GitOps repo ArgoCD's Application tracks"
+  type        = string
+  default     = "https://github.com/AmirWeiser/opentelemetry-demo-gitops.git"
+}
+
 variable "node_groups" {
   description = "EKS node group configuration"
   type = map(object({
